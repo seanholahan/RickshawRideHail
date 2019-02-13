@@ -7,10 +7,11 @@ import {getUserInputData} from '../modules/main';
 
 export const SearchBox =({getUserInputData})=> {
   function handleInput(key, val) {
-    getUserInputData({
-			key,
-			value:val
-		});
+    this.props.changeInput(val);
+    // getUserInputData({
+		// 	key,
+		// 	value:val
+		// });
   }
 
   return (

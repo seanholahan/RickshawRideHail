@@ -14,6 +14,31 @@ import Polyline from '@mapbox/polyline';
 import { Container,Text, Header, Content, Item, Input } from 'native-base';
 import SearchBox from './components/searchbox';
 import SearchResults from './components/searchResults';
+import RickshawApp from "./src/rickshawApp"
+import {createStore} from 'redux';
+import {Provider} from 'react-redux';
+
+const initialState = {
+  latitude: 20.9948891,
+  longitude: 105.799677,
+  latitudeDelta: 0.002,
+  longitudeDelta: 0.002,
+  cordLatitude:"37.785",
+cordLongitude:"-122.4",
+error: null,
+concat: null,
+coords:[],
+x: 'false',
+userInput: ""
+}
+const reducer = (state=initialState) => {
+    return state;
+}
+
+const store = createStore(reducer)
+
+
+
 
 
 
@@ -22,153 +47,87 @@ import SearchResults from './components/searchResults';
 type Props = {};
 export default class App extends Component<Props> {
 
-  constructor(props) {
-    super(props);
-  this.state = {
-        latitude: 20.9948891,
-        longitude: 105.799677,
-        latitudeDelta: 0.002,
-        longitudeDelta: 0.002,
-        cordLatitude:"37.785",
-      cordLongitude:"-122.4",
-      error: null,
-      concat: null,
-      coords:[],
-      x: 'false',
+  getMapRegion = () => ({
+ latitude: this.state.latitude,
+ longitude: this.state.longitude,
+ latitudeDelta: 0.002,
+ longitudeDelta: 0.002
+ });
+
+
+
+     componentDidMount() {
+       navigator.geolocation.getCurrentPosition(
+         (position) => {
+           console.log("wokeeey");
+           console.log(position);
+
+           this.setState({
+             latitude: position.coords.latitude,
+             longitude: position.coords.longitude,
+             latitudeDelta: 20.002,
+             longitudeDelta: 20.002,
+             error: null,
+           });
+           this.mergeLot();
+
+         },
+         (error) => this.setState({ error: error.message }),
+         { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 },
+       );
+   }
+
+
+
+
+
+   mergeLot(){
+     if (this.state.latitude != null && this.state.longitude!=null)
+      {
+        let concatLot = this.state.latitude +","+this.state.longitude
+        this.setState({
+          concat: concatLot
+        }, () => {
+          console.log('hi',concatLot);
+          this.getDirections(concatLot, "37.7,-122.40");
+        });
+      }
 
     }
 
-    this.mergeLot = this.mergeLot.bind(this);
-    this.mapRef = null;
-  }
 
 
+    async getDirections(startLoc, destinationLoc) {
+
+        try {
+             let  google_api_key = '&key=AIzaSyDjQMsmEjXWhtF4_VzETQQ4oK5MWyb8sdY'
+            let resp = await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${ startLoc }&destination=${ destinationLoc }${google_api_key}`)
+            let respJson = await resp.json();
+            console.log('yo',respJson)
+            let points = Polyline.decode(respJson.routes[0].overview_polyline.points);
+            let coords = points.map((point, index) => {
+                return  {
+                    latitude : point[0],
+                    longitude : point[1]
+                }
+            })
+            this.setState({coords: coords})
+            return coords
+        } catch(error) {
+            alert(error)
+            return error
+        }
+    }
 
 
- getMapRegion = () => ({
-latitude: this.state.latitude,
-longitude: this.state.longitude,
-latitudeDelta: 0.002,
-longitudeDelta: 0.002
-});
-
-
-
-    componentDidMount() {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("wokeeey");
-          console.log(position);
-
-          this.setState({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            latitudeDelta: 20.002,
-            longitudeDelta: 20.002,
-            error: null,
-          });
-          this.mergeLot();
-
-        },
-        (error) => this.setState({ error: error.message }),
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 },
-      );
-  }
-
-
-
-
-
-  mergeLot(){
-    if (this.state.latitude != null && this.state.longitude!=null)
-     {
-       let concatLot = this.state.latitude +","+this.state.longitude
-       this.setState({
-         concat: concatLot
-       }, () => {
-         console.log('hi',concatLot);
-         this.getDirections(concatLot, "37.7,-122.40");
-       });
-     }
-
-   }
-
-
-
-   async getDirections(startLoc, destinationLoc) {
-
-       try {
-            let  google_api_key = '&key=AIzaSyDjQMsmEjXWhtF4_VzETQQ4oK5MWyb8sdY'
-           let resp = await fetch(`https://maps.googleapis.com/maps/api/directions/json?origin=${ startLoc }&destination=${ destinationLoc }${google_api_key}`)
-           let respJson = await resp.json();
-           console.log('yo',respJson)
-           let points = Polyline.decode(respJson.routes[0].overview_polyline.points);
-           let coords = points.map((point, index) => {
-               return  {
-                   latitude : point[0],
-                   longitude : point[1]
-               }
-           })
-           this.setState({coords: coords})
-           return coords
-       } catch(error) {
-           alert(error)
-           return error
-       }
-   }
 
   render() {
 
     return (
+      <Provider store={store}>
+      <RickshawApp/>
+      </Provider>
 
-      <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-      <SearchBox
-      getUserInputData={this.props.getUserInputData}
-      style={styles.searchContainer}/>
-        <SearchResults/>
-                <Text style={styles.text}> {this.state.latitudeDelta} , {this.state.longitudeDelta}</Text>
-
-
-                <MapView style={styles.map}
-                              showUserLocation
-                              followUserLocation
-                              loadingEnabled
-                              initialRegion={this.state}
-                              region={this.getMapRegion()}>
-                                   {/* <MapView.Marker coordinate={this.state} /> */ }
-                                   <MapView.Marker coordinate={this.state} image={require('./assets/img/userLocation.png')} />
-                                   <MapView.Marker coordinate={this.state} />
-
-                                   <MapView.Polyline
-                                   coordinates={this.state.coords}
-                                   strokeWidth={2}
-                                   strokeColor="red"/>
-
-                                   {!!this.state.latitude && !!this.state.longitude && this.state.x == 'true' &&
-                             <MapView.Polyline
-                                 coordinates={this.state.coords}
-                                 strokeWidth={2}
-                                 strokeColor="red"/>
-                             }
-
-                             {!!this.state.latitude && !!this.state.longitude && this.state.x == 'error' &&
-                             <MapView.Polyline
-                               coordinates={[
-                                   {latitude: this.state.latitude, longitude: this.state.longitude},
-                                   {latitude: this.state.cordLatitude, longitude: this.state.cordLongitude},
-                               ]}
-                               strokeWidth={2}
-                               strokeColor="red"
-                             />
-                             }
-                              </MapView>
-
-
-
-
-            </View>
-            </SafeAreaView>
     );
   }
 }
